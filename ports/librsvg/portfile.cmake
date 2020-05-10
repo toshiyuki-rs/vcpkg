@@ -8,61 +8,27 @@ vcpkg_from_github(
     SHA512 "41676e80527f31728c5bd62fac1f48842b50f548562ae83a5765188f2303ff7d236c4211d37e458f37b652b4dc60807d442bfc10dfbf826ebab09f80a73fff54"
     )
 
-vcpkg_acquire_msys(MSYS_ROOT
-    PACKAGES make
-    automake
-    autoconf
-    gettext
-    gettext-devel
-    pkg-config
-    perl
-    gtk-doc
-    mingw-w64-i686-rust
-    mingw-w64-x86_64-rust)
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt DESTINATION ${SOURCE_PATH})
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/rsvg.def DESTINATION ${SOURCE_PATH})
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/run-cargo.bat DESTINATION ${SOURCE_PATH})
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/run-rustup.bat DESTINATION ${SOURCE_PATH})
 
-set(BASH ${MSYS_ROOT}/usr/bin/bash.exe)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.linux ${SOURCE_PATH}/config.h.linux COPYONLY)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.win32 ${SOURCE_PATH}/config.h.win32 COPYONLY)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/librsvg/librsvg-features.h.win32 ${SOURCE_PATH}/librsvg/librsvg-features.h.win32 COPYONLY)
 
-set(MSYS_CMD 'cd ${SOURCE_PATH} && ./autogen.sh')
+vcpkg_configure_cmake(
+    SOURCE_PATH ${SOURCE_PATH}
+    PREFER_NINJA # Disable this option if project cannot be built with Ninja
+)
 
-vcpkg_execute_required_process(
-    COMMAND ${BASH} --login --norc -c -- ${MSYS_CMD}
-    WORKING_DIRECTORY ${SOURCE_PATH}
-    LOGNAME autogen)
+vcpkg_install_cmake()
 
+vcpkg_fixup_cmake_targets(CONFIG_PATH share/unofficial-librsvg TARGET_PATH share/unofficial-librsvg)
+file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
 
-string(FIND ${TARGET_TRIPLET} "x86" X86_TARGET)
-
-if (X86_TARGET EQUAL -1)
-    set(ENV{MSYSTEM} MINGW64)
-else()
-    set(ENV{MSYSTEM} MINGW32)
-endif()
-
-
-set(MSYS_CMD 'cd ${SOURCE_PATH} && ${SOURCE_PATH}/configure')
-
-vcpkg_execute_required_process(
-    COMMAND ${BASH} --login --norc -c -- ${MSYS_CMD} 
-    WORKING_DIRECTORY ${CURRENT_PACKGES_DIR}/${BUILD_TRIPLET}
-    LOGNAME ${BUILD_TRIPLET}-configure)
-
-
-set(MSYS_CMD 'cd ${CURRENT_PACKGES_DIR}/${BUILD_TRIPLET} && make')
-
-
-vcpkg_execute_build_process(
-    COMMAND ${BASH} --login --norc -c -- ${MSYS_CMD} 
-    WORKING_DIRECTORY ${CURRENT_PACKGES_DIR}/${BUILD_TRIPLET}
-    LOGNAME ${BUILD_TRIPLET}-make)
-
-
-set(MSYS_CMD 'cd ${CURRENT_PACKGES_DIR}/${BUILD_TRIPLET} && make install')
-
-vcpkg_execute_build_process(
-    COMMAND ${BASH} --login --norc -c -- ${MSYS_CMD} 
-    WORKING_DIRECTORY ${CURRENT_PACKGES_DIR}/${BUILD_TRIPLET}
-    LOGNAME ${BUILD_TRIPLET}-make-install)
-
+# Handle copyright
+file(INSTALL ${SOURCE_PATH}/COPYING DESTINATION ${CURRENT_PACKAGES_DIR}/share/librsvg RENAME copyright)
 
 vcpkg_copy_pdbs()
 
