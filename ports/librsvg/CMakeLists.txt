@@ -228,6 +228,7 @@ target_link_libraries(rsvg-${RSVG_VERSION} PRIVATE
     ${SOCKET_LIB}
     ${USERENV_LIB} 
     unofficial::cairo::cairo
+    unofficial::cairo::cairo-gobject
     unofficial::libcroco::croco-0.6
     unofficial::glib::gio
     unofficial::glib::glib
