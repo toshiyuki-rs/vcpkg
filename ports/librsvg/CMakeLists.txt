@@ -186,7 +186,7 @@ endif()
 set(CARGO_RELEASE_FLAG $<$<CONFIG:Release>:--release>)   
 
 
-#set(CMAKE_DEBUG_POSTFIX "d")
+set(CMAKE_DEBUG_POSTFIX "d")
 
 add_library(rsvg-${RSVG_VERSION} ${LIBRSVG_SOURCES})
 add_library(pixbufloader-svg ${PIXBUFLOADERSVG_SOURCES})
