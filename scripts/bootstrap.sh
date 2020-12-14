@@ -6,18 +6,11 @@ while [ "$vcpkgRootDir" != "/" ] && ! [ -e "$vcpkgRootDir/.vcpkg-root" ]; do
     vcpkgRootDir="$(dirname "$vcpkgRootDir")"
 done
 
-# Enable using this entry point on windows from git bash by redirecting to the .bat file.
-unixName=$(uname -s | sed 's/MINGW.*_NT.*/MINGW_NT/')
-if [ "$unixName" = "MINGW_NT" ]; then
-  vcpkgRootDir=$(cygpath -aw "$vcpkgRootDir")
-  cmd "/C $vcpkgRootDir\\bootstrap-vcpkg.bat" || exit 1
-  exit 0
-fi
-
 # Argument parsing
 vcpkgDisableMetrics="OFF"
 vcpkgUseSystem=false
 vcpkgAllowAppleClang=false
+vcpkgBuildTests="OFF"
 for var in "$@"
 do
     if [ "$var" = "-disableMetrics" -o "$var" = "--disableMetrics" ]; then
@@ -26,6 +19,8 @@ do
         vcpkgUseSystem=true
     elif [ "$var" = "-allowAppleClang" -o "$var" = "--allowAppleClang" ]; then
         vcpkgAllowAppleClang=true
+    elif [ "$var" = "-buildTests" ]; then
+        vcpkgBuildTests="ON"
     elif [ "$var" = "-help" -o "$var" = "--help" ]; then
         echo "Usage: ./bootstrap-vcpkg.sh [options]"
         echo
@@ -40,6 +35,20 @@ do
         exit 1
     fi
 done
+
+# Enable using this entry point on windows from git bash by redirecting to the .bat file.
+unixName=$(uname -s | sed 's/MINGW.*_NT.*/MINGW_NT/')
+if [ "$unixName" = "MINGW_NT" ]; then
+    if [ "$vcpkgDisableMetrics" = "ON" ]; then
+        args="-disableMetrics"
+    else
+        args=""
+    fi
+
+    vcpkgRootDir=$(cygpath -aw "$vcpkgRootDir")
+    cmd "/C $vcpkgRootDir\\bootstrap-vcpkg.bat $args" || exit 1
+    exit 0
+fi
 
 if [ -z ${VCPKG_DOWNLOADS+x} ]; then
     downloadsDir="$vcpkgRootDir/downloads"
@@ -65,8 +74,18 @@ vcpkgCheckRepoTool()
     __tool=$1
     if ! command -v "$__tool" >/dev/null 2>&1 ; then
         echo "Could not find $__tool. Please install it (and other dependencies) with:"
-        echo "sudo apt-get install curl unzip tar"
+        echo "sudo apt-get install curl zip unzip tar"
         exit 1
+    fi
+}
+
+vcpkgCheckBuildTool()
+{
+    __tool=$1
+    if ! command -v "$__tool" >/dev/null 2>&1 ; then
+	echo "Could not find $__tool. Please install it (and other dependencies) with:"
+	echo "sudo apt-get install cmake ninja-build"
+	exit 1
     fi
 }
 
@@ -200,7 +219,9 @@ fetchTool()
 selectCXX()
 {
     if [ "x$CXX" = "x" ]; then
-        if which g++-9 >/dev/null 2>&1; then
+        if which g++-10 >/dev/null 2>&1; then
+            CXX=g++-10
+        elif which g++-9 >/dev/null 2>&1; then
             CXX=g++-9
         elif which g++-8 >/dev/null 2>&1; then
             CXX=g++-8
@@ -217,10 +238,29 @@ selectCXX()
 
 # Preparation
 UNAME="$(uname)"
+ARCH="$(uname -m)"
+
+# Force using system utilities for building vcpkg if host arch is arm, arm64, or s390x.
+if [ "$ARCH" = "armv7l" -o "$ARCH" = "aarch64" -o "$ARCH" = "s390x" ]; then
+    vcpkgUseSystem=true
+fi
+
+if [ "$UNAME" = "OpenBSD" ]; then
+    vcpkgUseSystem=true
+
+    if [ -z "$CXX" ]; then
+        CXX=/usr/bin/clang++
+    fi
+    if [ -z "$CC" ]; then
+        CC=/usr/bin/clang
+    fi
+fi
 
 if $vcpkgUseSystem; then
     cmakeExe="cmake"
     ninjaExe="ninja"
+    vcpkgCheckBuildTool "$cmakeExe"
+    vcpkgCheckBuildTool "$ninjaExe"
 else
     fetchTool "cmake" "$UNAME" cmakeExe || exit 1
     fetchTool "ninja" "$UNAME" ninjaExe || exit 1
@@ -240,16 +280,22 @@ buildDir="$vcpkgRootDir/toolsrc/build.rel"
 rm -rf "$buildDir"
 mkdir -p "$buildDir"
 
-(cd "$buildDir" && CXX="$CXX" "$cmakeExe" .. -DCMAKE_BUILD_TYPE=Release -G "Ninja" "-DCMAKE_MAKE_PROGRAM=$ninjaExe" "-DBUILD_TESTING=OFF" "-DVCPKG_DEVELOPMENT_WARNINGS=OFF" "-DVCPKG_DISABLE_METRICS=$vcpkgDisableMetrics" "-DVCPKG_ALLOW_APPLE_CLANG=$vcpkgAllowAppleClang") || exit 1
+(cd "$buildDir" && CXX="$CXX" "$cmakeExe" .. -DCMAKE_BUILD_TYPE=Release -G "Ninja" "-DCMAKE_MAKE_PROGRAM=$ninjaExe" "-DBUILD_TESTING=$vcpkgBuildTests" "-DVCPKG_DEVELOPMENT_WARNINGS=OFF" "-DVCPKG_DISABLE_METRICS=$vcpkgDisableMetrics" "-DVCPKG_ALLOW_APPLE_CLANG=$vcpkgAllowAppleClang") || exit 1
 (cd "$buildDir" && "$cmakeExe" --build .) || exit 1
 
 rm -rf "$vcpkgRootDir/vcpkg"
 cp "$buildDir/vcpkg" "$vcpkgRootDir/"
 
 if ! [ "$vcpkgDisableMetrics" = "ON" ]; then
-    echo "Telemetry"
-    echo "---------"
-    echo "vcpkg collects usage data in order to help us improve your experience. The data collected by Microsoft is anonymous. You can opt-out of telemetry by re-running bootstrap-vcpkg.sh with -disableMetrics"
-    echo "Read more about vcpkg telemetry at docs/about/privacy.md"
-    echo ""
+    cat <<EOF
+Telemetry
+---------
+vcpkg collects usage data in order to help us improve your experience.
+The data collected by Microsoft is anonymous.
+You can opt-out of telemetry by re-running the bootstrap-vcpkg script with -disableMetrics,
+passing --disable-metrics to vcpkg on the command line,
+or by setting the VCPKG_DISABLE_METRICS environment variable.
+
+Read more about vcpkg telemetry at docs/about/privacy.md
+EOF
 fi

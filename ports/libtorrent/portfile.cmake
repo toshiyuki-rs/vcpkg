@@ -6,21 +6,13 @@ if(VCPKG_TARGET_IS_WINDOWS)
         message(FATAL_ERROR "The python feature is currently broken on Windows")
     endif()
 
-    if("iconv" IN_LIST FEATURES)
-        set(ICONV_PATCH "fix_find_iconv.patch")
-    else()
+    if(NOT "iconv" IN_LIST FEATURES)
         # prevent picking up libiconv if it happens to already be installed
         set(ICONV_PATCH "no_use_iconv.patch")
     endif()
 
-    # Ensure "OPENSSL_USE_STATIC_LIBS" is set to ON
-    # when statically linking against OpenSSL on Windows.
-    # Also ensure "static_runtime" will be used when statically linking against the runtime.
-    # Prevents OpenSSL crypt32.lib linking errors.
     if(VCPKG_CRT_LINKAGE STREQUAL "static")
         set(_static_runtime ON)
-    elseif(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
-        set(_OPENSSL_USE_STATIC_LIBS ON)
     endif()
 endif()
 
@@ -45,12 +37,10 @@ endif()
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO arvidn/libtorrent
-    REF libtorrent-1_2_6
-    SHA512 9f03e28449b08e18a98a1f1bf0571f470c56fabd2becde5bde56ad566611c8519b0b387939f285a552d1f0382446633b67d00b6b5ff7083e4d1420a3ce9232fc
-    HEAD_REF master
+    REF v1.2.11
+    SHA512 d502286f67bf462f14169daafe12b94ca723598530c85360c3a4b3c73535202b63632036248fdecc942cb559e66e6a5cb5afa830dc78bbff72a6c9a330710b62
+    HEAD_REF RC_1_2
     PATCHES
-        add-datetime-to-boost-libs.patch
-        fix_python_cmake.patch
         ${ICONV_PATCH}
 )
 
@@ -61,7 +51,6 @@ vcpkg_configure_cmake(
         ${FEATURE_OPTIONS}
         -Dboost-python-module-name=${_boost-python-module-name}
         -Dstatic_runtime=${_static_runtime}
-        -DOPENSSL_USE_STATIC_LIBS=${_OPENSSL_USE_STATIC_LIBS}
         -DPython3_USE_STATIC_LIBS=ON
 )
 

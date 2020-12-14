@@ -1,26 +1,29 @@
-## # vcpkg_install_gn
-##
-## Installs a GN project
-##
-## ## Usage:
-## ```cmake
-## vcpkg_install_gn(
-##      SOURCE_PATH <SOURCE_PATH>
-##      [TARGETS <target>...]
-## )
-## ```
-##
-## ## Parameters:
-## ### SOURCE_PATH
-## The path to the source directory
-## 
-## ### TARGETS
-## Only install the specified targets.
-##
-## Note: includes must be handled separately
+#[===[.md:
+# vcpkg_install_gn
+
+Installs a GN project
+
+## Usage:
+```cmake
+vcpkg_install_gn(
+     SOURCE_PATH <SOURCE_PATH>
+     [TARGETS <target>...]
+)
+```
+
+## Parameters:
+### SOURCE_PATH
+The path to the source directory
+
+### TARGETS
+Only install the specified targets.
+
+Note: includes must be handled separately
+#]===]
 
 function(vcpkg_install_gn)
-    cmake_parse_arguments(_vig "" "SOURCE_PATH" "TARGETS" ${ARGN})
+    # parse parameters such that semicolons in options arguments to COMMAND don't get erased
+    cmake_parse_arguments(PARSE_ARGV 0 _vig "" "SOURCE_PATH" "TARGETS")
     
     if(NOT DEFINED _vig_SOURCE_PATH)
         message(FATAL_ERROR "SOURCE_PATH must be specified.")
@@ -68,6 +71,12 @@ function(vcpkg_install_gn)
                             string(REGEX REPLACE "^/" "" OUTPUT "${OUTPUT}")
                         endif()
                     endif()
+
+                    if(NOT EXISTS "${OUTPUT}")
+                        message(STATUS "Output for target, ${TARGET} doesn't exist: ${OUTPUT}.")
+                        continue()
+                    endif()
+                    
                     if(TARGET_TYPE STREQUAL "executable")
                         file(INSTALL "${OUTPUT}" DESTINATION "${INSTALL_DIR}/tools")
                     elseif("${OUTPUT}" MATCHES "(\\.dll|\\.pdb)$")

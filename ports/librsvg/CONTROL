@@ -1,4 +1,5 @@
 Source: librsvg
-Version: 2.49.00
+Version: 2.50.2
+Homepage: https://gitlab.gnome.org/GNOME/librsvg
 Description: A small library to render Scalable Vector Graphics (SVG)
 Build-Depends: cairo, pango, gdk-pixbuf, libcroco

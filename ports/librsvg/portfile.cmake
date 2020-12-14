@@ -1,13 +1,11 @@
 include(vcpkg_common_functions)
 
-
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO "GNOME/librsvg"
-    REF "2.48.4"
-    SHA512 "41676e80527f31728c5bd62fac1f48842b50f548562ae83a5765188f2303ff7d236c4211d37e458f37b652b4dc60807d442bfc10dfbf826ebab09f80a73fff54"
+    REF "2.50.2"
+    SHA512 "5423db0386b493b7eab5db636b563ad44fda20df34ee6b1e9a9cd773d837d6ac327df30de20f4f3936c77056574aa59be2145c3862182b4c980d8bd82920bd40"
     )
-
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt DESTINATION ${SOURCE_PATH})
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/rsvg.def DESTINATION ${SOURCE_PATH})
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/run-cargo.bat DESTINATION ${SOURCE_PATH})
@@ -24,7 +22,10 @@ vcpkg_configure_cmake(
 
 vcpkg_install_cmake()
 
+vcpkg_copy_pdbs()
+
 vcpkg_fixup_cmake_targets(CONFIG_PATH share/unofficial-librsvg TARGET_PATH share/unofficial-librsvg)
+
 file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
 
 # Handle copyright
@@ -32,5 +33,5 @@ file(INSTALL ${SOURCE_PATH}/COPYING.LIB DESTINATION ${CURRENT_PACKAGES_DIR}/shar
 
 vcpkg_copy_pdbs()
 
-vcpkg_test_cmake(PACKAGE_NAME unofficial-librsvg)
 # vi: se ts=4 sw=4 et:
+
